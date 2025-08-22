@@ -57,7 +57,26 @@ SCORE_WEIGHT_OUTDEGREE = 0.5
 SCORE_WEIGHT_PAGELENGTH = 0.1
 
 # --- Configuration de l'Entraînement ---
-TOTAL_TIMESTEPS = 2_500_000
+TOTAL_TIMESTEPS = 1_500_000
+
+
+# --- Configuration de Reprise d'Entraînement ---
+# Mettre à True pour charger un modèle existant et continuer son entraînement.
+# Mettre à False pour commencer un nouvel entraînement de zéro.
+RESUME_TRAINING = True
+
+# Nom de base du modèle à charger si RESUME_TRAINING est True.
+# Le script trouvera automatiquement la dernière version (ex: "mon_super_modele-3")
+# Exemple: MODEL_NAME_TO_RESUME = "nouveau_modele_1"
+MODEL_NAME_TO_RESUME = "nouveau_modele_1"
+
+# Chemin du modèle à charger si RESUME_TRAINING est True.
+# Peut être le modèle final ou un checkpoint spécifique.
+# Exemples:
+# MODEL_TO_RESUME_PATH = os.path.join(MODELS_PATH, "wiki_ppo_final.zip")
+# MODEL_TO_RESUME_PATH = os.path.join(MODELS_PATH, "checkpoints/wiki_ppo_checkpoint_417792_steps.zip")
+MODEL_TO_RESUME_PATH = os.path.join(MODELS_PATH, "wiki_ppo_final.zip")
+
 
 # --- Configuration du Jeu ---
 DEFAULT_MODEL_NAME = "wiki_maskable_ppo.zip"
