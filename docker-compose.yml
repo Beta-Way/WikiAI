@@ -1,16 +1,22 @@
-version: '3.8'
+version: '3.9'
 
 services:
   neo4j:
-    image: neo4j:5-community # On utilise l'image officielle de Neo4j 5
-    container_name: wikiai_neo4j
-    ports:
-      - "7474:7474" # Pour l'interface web (le "navigateur" Neo4j)
-      - "7687:7687" # Pour la connexion depuis nos scripts Python (le "Bolt" protocol)
-    volumes:
-      - ./neo4j-data:/data # Persiste les données de la BDD dans un dossier local
+    image: neo4j:5.10
+    container_name: neo4j
     environment:
-      # On désactive l'authentification pour faciliter le développement local
-      # ATTENTION: Ne jamais faire ça pour une application en production !
+      # Authentification désactivée
       - NEO4J_AUTH=none
-    restart: unless-stopped
+      # Mémoire (à ajuster selon ton Mac)
+      - NEO4J_dbms_memory_heap_initial__size=4G
+      - NEO4J_dbms_memory_heap_max__size=12G
+      - NEO4J_dbms_memory_pagecache_size=8G
+      # TLS désactivé
+      - NEO4J_server_bolt_tls__level=DISABLED
+      # Validation stricte désactivée pour éviter les erreurs
+      - NEO4J_server_config_strict__validation_enabled=false
+    ports:
+      - "7474:7474"  # HTTP Browser
+      - "7687:7687"  # Bolt
+    volumes:
+      - ./neo4j-data:/data

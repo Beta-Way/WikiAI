@@ -36,28 +36,28 @@ TOP_PAGES_SELECTION_MODE = "SNOWBALL"
 
 # --- Sous-paramètres pour le mode "SNOWBALL" ---
 # Nombre de pages "seed" (le noyau de départ).
-SNOWBALL_SEED_COUNT = 50
+SNOWBALL_SEED_COUNT = 300
 
 # Profondeur de l'expansion (1 = voisins directs, 2 = voisins des voisins).
-SNOWBALL_DEPTH = 2
+SNOWBALL_DEPTH = 3
 
 # À chaque étape de l'expansion, on ne garde que les N meilleurs voisins (basé sur leur score).
-SNOWBALL_NEIGHBOR_LIMIT = 100
+SNOWBALL_NEIGHBOR_LIMIT = 500
 
 # Après l'expansion, supprime toutes les pages ayant moins de X connexions au total.
 # Cela nettoie le graphe des "feuilles" et des impasses.
-PRUNING_THRESHOLD = 3
+PRUNING_THRESHOLD = 10
 
 # --- Sous-paramètres pour le mode "FLAT" (non utilisé si mode="SNOWBALL") ---
 NUM_TOP_PAGES_TO_KEEP = 2500
 
 # Poids pour le calcul du score de notoriété (inchangé)
-SCORE_WEIGHT_INDEGREE = 0.5
-SCORE_WEIGHT_OUTDEGREE = 0.2
-SCORE_WEIGHT_PAGELENGTH = 0.3
+SCORE_WEIGHT_INDEGREE = 0.4
+SCORE_WEIGHT_OUTDEGREE = 0.5
+SCORE_WEIGHT_PAGELENGTH = 0.1
 
 # --- Configuration de l'Entraînement ---
-TOTAL_TIMESTEPS = 1_000_000
+TOTAL_TIMESTEPS = 2_500_000
 
 # --- Configuration du Jeu ---
 DEFAULT_MODEL_NAME = "wiki_maskable_ppo.zip"

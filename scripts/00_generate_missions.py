@@ -1,62 +1,74 @@
-# scripts/00_generate_missions.py
+# scripts/00_generate_missions.py (V2.0 - Marche Aléatoire)
 import sys
 import os
 import json
 import random
 from tqdm import tqdm
 
-# Ajoute la racine du projet au path pour permettre l'import de 'src'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from neo4j import GraphDatabase, Driver
 from src import config
 
 # --- CONFIGURATION ---
-NUM_START_PAGES = 1000  # Nombre de pages de départ à tester
-MAX_MISSIONS_TO_FIND = 5000 # On s'arrête quand on a trouvé assez de missions
-MIN_DISTANCE = 2       # On veut des missions qui demandent au moins 2 clics
-MAX_DISTANCE = 10      # Évite les missions trop longues ou impossibles
+NUM_MISSIONS_TO_GENERATE = 100000  # On peut viser plus haut, c'est rapide
+MIN_WALK_LENGTH = 4  # Nombre de sauts minimum
+MAX_WALK_LENGTH = 11  # Nombre de sauts maximum
 OUTPUT_FILE = "missions.json"
 
-def get_random_start_pages(driver: Driver, count: int) -> list[str]:
-    """Récupère une liste de titres de pages au hasard depuis la base."""
+
+def get_random_page(driver: Driver) -> str:
+    """Récupère UNE seule page au hasard."""
     with driver.session(database="neo4j") as session:
-        # La clause "random()" est coûteuse, mais acceptable pour un script utilitaire.
-        # On utilise le score pour biaiser vers des pages plus "intéressantes".
         result = session.run("""
             MATCH (p:Page)
             RETURN p.title AS title, rand() AS r
             ORDER BY r
-            LIMIT $count
-        """, count=count)
-        return [record["title"] for record in result]
+            LIMIT 1
+        """)
+        return result.single()["title"]
 
-def find_missions_from_start_page(driver: Driver, start_page: str) -> list[dict]:
-    """Trouve toutes les cibles atteignables entre MIN et MAX distance."""
+
+def perform_random_walk(driver: Driver, start_page: str, length: int) -> str:
+    """Effectue une marche aléatoire depuis une page de départ et retourne la page d'arrivée."""
+    current_page = start_page
     with driver.session(database="neo4j") as session:
-        # On utilise l'algorithme de plus court chemin (shortestPath)
-        # pour trouver la distance à toutes les autres pages atteignables.
-        result = session.run("""
-            MATCH (start:Page {title: $start_page}), (target:Page)
-            WHERE start <> target
-            MATCH p = shortestPath((start)-[:LINKS_TO*..10]->(target))
-            RETURN target.title AS target_page, length(p) AS distance
-        """, start_page=start_page)
+        for _ in range(length):
+            # On cherche un voisin au hasard
+            result = session.run("""
+                MATCH (start:Page {title: $start_page})-[:LINKS_TO]->(neighbor:Page)
+                RETURN neighbor.title AS next_page, rand() as r
+                ORDER BY r
+                LIMIT 1
+            """, start_page=current_page)
 
-        missions = []
-        for record in result:
-            distance = record["distance"]
-            if MIN_DISTANCE <= distance <= MAX_DISTANCE:
-                missions.append({
-                    "start": start_page,
-                    "target": record["target_page"],
-                    "distance": distance
-                })
-        return missions
+            record = result.single()
+            if record:
+                current_page = record["next_page"]
+            else:
+                # Si on est dans une impasse, on arrête la marche
+                break
+    return current_page
+
+
+def get_shortest_path_distance(driver: Driver, start_page: str, target_page: str) -> int:
+    """Calcule la distance réelle la plus courte entre les deux pages."""
+    if start_page == target_page:
+        return 0
+    with driver.session(database="neo4j") as session:
+        result = session.run(
+            "MATCH (s:Page {title: $start}), (t:Page {title: $target}) "
+            "MATCH p = shortestPath((s)-[:LINKS_TO*..15]->(t)) "
+            "RETURN length(p) as dist",
+            start=start_page, target=target_page
+        )
+        record = result.single()
+        return record["dist"] if record else -1  # -1 si aucun chemin n'est trouvé
+
 
 def main():
-    """Script principal pour générer et sauvegarder les missions."""
-    print("--- Générateur de Missions pour Wiki AI ---")
+    """Script principal pour générer des missions par marche aléatoire."""
+    print("--- Générateur de Missions V2.0 (Marche Aléatoire) ---")
 
     auth = None
     if config.NEO4J_AUTH_ENABLED:
@@ -66,36 +78,47 @@ def main():
         driver.verify_connectivity()
         print("Connexion à Neo4j établie.")
 
-        start_pages = get_random_start_pages(driver, NUM_START_PAGES)
-        print(f"{len(start_pages)} pages de départ récupérées.")
+        missions = []
+        pbar = tqdm(total=NUM_MISSIONS_TO_GENERATE, desc="Génération de missions")
 
-        all_missions = []
+        while len(missions) < NUM_MISSIONS_TO_GENERATE:
+            start_page = get_random_page(driver)
+            walk_length = random.randint(MIN_WALK_LENGTH, MAX_WALK_LENGTH)
+            target_page = perform_random_walk(driver, start_page, walk_length)
 
-        with tqdm(total=MAX_MISSIONS_TO_FIND, desc="Recherche de missions") as pbar:
-            for start_page in start_pages:
-                if len(all_missions) >= MAX_MISSIONS_TO_FIND:
-                    break
+            # On s'assure que le départ et la cible sont bien différents
+            if start_page == target_page:
+                continue
 
-                missions = find_missions_from_start_page(driver, start_page)
+            # On calcule la distance réelle la plus courte pour la stocker
+            distance = get_shortest_path_distance(driver, start_page, target_page)
 
-                if missions:
-                    all_missions.extend(missions)
-                    pbar.update(len(missions))
+            # On ne garde que les missions valides (chemin existant et pas trop court)
+            if distance >= 2:
+                missions.append({
+                    "start": start_page,
+                    "target": target_page,
+                    "distance": distance
+                })
+                pbar.update(1)
 
-        if not all_missions:
-            print("\nERREUR: Aucune mission trouvée. Votre graphe est-il peut-être trop petit ou fragmenté ?")
-            print("Essayez d'augmenter NUM_START_PAGES ou de re-générer un graphe plus dense.")
+        pbar.close()
+
+        if not missions:
+            print("\nERREUR: Aucune mission n'a pu être générée.")
             return
 
-        print(f"\nRecherche terminée. {len(all_missions)} missions trouvées.")
+        print(f"\nGénération terminée. {len(missions)} missions valides créées.")
 
-        # On mélange pour ne pas avoir toutes les missions du même départ à la suite
-        random.shuffle(all_missions)
+        # On mélange une dernière fois pour une bonne mesure
+        random.shuffle(missions)
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            json.dump(all_missions, f, indent=4, ensure_ascii=False)
+            json.dump(missions, f, indent=4, ensure_ascii=False)
 
         print(f"✅ Missions sauvegardées avec succès dans '{OUTPUT_FILE}'.")
+        print("Exemple de mission :", missions[0])
+
 
 if __name__ == "__main__":
     main()
