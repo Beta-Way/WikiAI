@@ -1,0 +1,20 @@
+# Dossiers créés par Python
+.venv/
+__pycache__/
+*.pyc
+
+# Données locales et logs
+data/
+logs/
+models/
+neo4j-data/
+*.sql.gz
+
+# Fichiers d'IDE
+.idea/
+.vscode/
+
+
+/wiki_tensorboard_logs/
+archive/
+/missions.json
