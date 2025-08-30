@@ -63,7 +63,7 @@ TOTAL_TIMESTEPS = 1_500_000
 # --- Configuration de Reprise d'Entraînement ---
 # Mettre à True pour charger un modèle existant et continuer son entraînement.
 # Mettre à False pour commencer un nouvel entraînement de zéro.
-RESUME_TRAINING = True
+RESUME_TRAINING = False
 
 # Nom de base du modèle à charger si RESUME_TRAINING est True.
 # Le script trouvera automatiquement la dernière version (ex: "mon_super_modele-3")
